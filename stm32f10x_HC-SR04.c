@@ -1,68 +1,75 @@
 #include <stm32f10x_HC-SR04.h>
+#include <stm32l4xx_ll_tim.h>
+#include <std32l4xx_ll_gpio.h>
 
-extern void EnableHCSR04PeriphClock();
+static void initMeasureTimer()
+{
+	uint16_t prescaler = RCC_GetSystemClockFreq() / 1000000 - 1; //1 tick = 1us (1 tick = 0.165mm resolution)
 
-static void initMeasureTimer() {
-	RCC_ClocksTypeDef RCC_ClocksStatus;
-	RCC_GetClocksFreq(&RCC_ClocksStatus);
-	uint16_t prescaler = RCC_ClocksStatus.SYSCLK_Frequency / 1000000 - 1; //1 tick = 1us (1 tick = 0.165mm resolution)
+	LL_TIM_DeInit(US_TIMER);
 
-	TIM_DeInit(US_TIMER);
-	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
-	TIM_TimeBaseInitStruct.TIM_Prescaler = prescaler;
-	TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseInitStruct.TIM_Period = 0xFFFF;
-	TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;
-	TIM_TimeBaseInit(US_TIMER, &TIM_TimeBaseInitStruct);
+	LL_TIM_InitTypeDef timInit;
+	LL_TIM_StructInit(&timInit);
+	timInit.Prescaler = prescaler;
+	timInit.Autoreload = 0xFFFF; // Period
+	timInit.RepetitionCounter = 1;
+	LL_TIM_Init(US_TIMER, &timInit);
 
-	TIM_OCInitTypeDef TIM_OCInitStruct;
-	TIM_OCStructInit(&TIM_OCInitStruct);
-	TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
-	TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStruct.TIM_Pulse = 15; //us
-	TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_High;
-	TIM_OC3Init(US_TIMER, &TIM_OCInitStruct);
+	LL_TIM_OC_InitTypeDef ocInit;
+	LL_TIM_OC_StructInit(&ocInit);
+	ocInit.OCMode = LL_TIM_OCMODE_PWM1;
+	ocInit.CompareValue = 15; // Pulse
+	ocInit.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
+	ocInit.OCState = LL_TIM_OCSTATE_ENABLE;
+	LL_TIM_OC_Init(US_TIMER, LL_TIM_CHANNEL_CH3, &ocInit);
 
-	TIM_ICInitTypeDef TIM_ICInitStruct;
-	TIM_ICInitStruct.TIM_Channel = TIM_Channel_1;
-	TIM_ICInitStruct.TIM_ICPolarity = TIM_ICPolarity_Rising;
-	TIM_ICInitStruct.TIM_ICSelection = TIM_ICSelection_DirectTI;
-	TIM_ICInitStruct.TIM_ICPrescaler = TIM_ICPSC_DIV1;
-	TIM_ICInitStruct.TIM_ICFilter = 0;
+	LL_TIM_IC_InitTypeDef icInit;
+	LL_TIM_IC_StructInit(&icInit);
+	icInit.ICPolarity = LL_TIM_IC_POLARITY_RISING;
+	icInit.ICPrescaler = LL_TIM_ICPSC_DIV1;
+	icInit.ICFilter = LL_TIM_IC_FILTER_FDIV1; // 0
+	icInit.ICActiveInput = LL_TIM_ACTIVEINPUT_DIRECTTI;
+	LL_TIM_IC_Init(US_TIMER, LL_TIM_CHANNEL_CH1, &icInit);
 
-	TIM_PWMIConfig(US_TIMER, &TIM_ICInitStruct);
-	TIM_SelectInputTrigger(US_TIMER, US_TIMER_TRIG_SOURCE);
-	TIM_SelectMasterSlaveMode(US_TIMER, TIM_MasterSlaveMode_Enable);
+	LL_TIM_SetTriggerInput(US_TIMER, US_TIMER_TRIG_SOURCE);
+	LL_TIM_EnableMasterSlaveMode(US_TIMER);
 
-	TIM_CtrlPWMOutputs(US_TIMER, ENABLE);
+	MODIFY_REG(US_TIMER->BDTR, 0, TIM_BDTR_MOE); //TIM_CtrlPWMOutputs(US_TIMER, ENABLE);
 
-	TIM_ClearFlag(US_TIMER, TIM_FLAG_Update);
+	LL_TIM_ClearFlag_UPDATE(US_TIMER);
 }
 
-static void initPins() {
-	GPIO_InitTypeDef GPIO_InitStructure;
-	GPIO_InitStructure.GPIO_Pin = US_TRIG_PIN;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+static void initPins()
+{
+	LL_GPIO_InitTypeDef gpioInit;
+	gpioInit.Pin = US_TRIG_PIN;
+	gpioInit.Speed = LL_GPIO_SPEED_FREQ_VERY_MEDIUM; //GPIO_Speed_50MHz;
+	gpioInit.Mode = LL_GPIO_MODE_ALTERNATE; //GPIO_Mode_AF_PP;
+	gpioInit.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+	gpioInit.Pull = LL_GPIO_PULL_NO;
+	gpioInit.Alternate = LL_GPIO_AF_0; // 0..15 ?
 	GPIO_Init(US_TRIG_PORT, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = US_ECHO_PIN;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	gpioInit.GPIO_Pin = US_ECHO_PIN;
+	gpioInit.GPIO_Speed = LL_GPIO_SPEED_FREQ_VERY_MEDIUM;//GPIO_Speed_50MHz;
+	gpioInit.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(US_ECHO_PORT, &GPIO_InitStructure);
 }
 
-void InitHCSR04() {
+void InitHCSR04()
+{
 	EnableHCSR04PeriphClock();
 	initPins();
 	initMeasureTimer();
 }
 
-int32_t HCSR04GetDistance() {
-	(US_TIMER)->CNT = 0;
-	TIM_Cmd(US_TIMER, ENABLE);
-	while(!TIM_GetFlagStatus(US_TIMER, TIM_FLAG_Update));
-	TIM_Cmd(US_TIMER, DISABLE);
-	TIM_ClearFlag(US_TIMER, TIM_FLAG_Update);
-	return (TIM_GetCapture2(US_TIMER)-TIM_GetCapture1(US_TIMER))*165/1000;
+uint32_t HCSR04GetDistance()
+{
+	LL_TIM_SetCounter(US_TIMER, 0);
+	LL_TIM_EnableCounter(US_TIMER);
+	while(!LL_TIM_IsActiveFlag_UPDATE(US_TIMER));
+	LL_TIM_DisableCounter(US_TIMER);
+	LL_TIM_ClearFlag_UPDATE(US_TIMER);
+
+	return (LL_TIM_IC_GetCaptureCH2(US_TIMER)-LL_TIM_IC_GetCaptureCH1(US_TIMER))*165U/1000U;
 }

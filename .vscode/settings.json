@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "stm32f10x_hc-sr04.h": "c",
+        "stm32l4xx_ll_tim.h": "c"
+    }
+}

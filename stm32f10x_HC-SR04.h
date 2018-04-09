@@ -1,16 +1,15 @@
-#ifndef STM32F10X_HC_SR04_H_
-#define STM32F10X_HC_SR04_H_
+#pragma once
 
-#include "stm32f10x.h"
+#include <stdint.h>
 
-#define US_TIMER					TIM3
+#define US_TIMER					TIM1
 
 #define US_TRIG_PORT				GPIOB
-#define US_TRIG_PIN					GPIO_Pin_0		//TIM Ch3 (trig output)
+#define US_TRIG_PIN					LL_GPIO_PIN_0		//TIM Ch3 (trig output)
 
 #define US_ECHO_PORT				GPIOA
-#define US_ECHO_PIN					GPIO_Pin_6		//TIM Ch1 (echo input)
-#define US_TIMER_TRIG_SOURCE		TIM_TS_TI1FP1
+#define US_ECHO_PIN					LL_GPIO_PIN_6		//TIM Ch1 (echo input)
+#define US_TIMER_TRIG_SOURCE		LL_TIM_TS_TI1FP1 //TIM_TS_TI1FP1
 
 /**
  *	How to use this driver:
@@ -45,6 +44,4 @@ void InitHCSR04();
 /**
  * Measure distance and get value in mm. Lover than 0 means no echo signal: distance more than ~3m.
  */
-int32_t HCSR04GetDistance();
-
-#endif /* STM32F10X_HC_SR04_H_ */
+uint32_t HCSR04GetDistance();
