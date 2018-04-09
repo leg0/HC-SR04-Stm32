@@ -1,10 +1,13 @@
-#include <stm32f10x_HC-SR04.h>
+#include "stm32f10x_HC-SR04.h"
+#include <stm32l4xx_ll_rcc.h>
 #include <stm32l4xx_ll_tim.h>
-#include <std32l4xx_ll_gpio.h>
+#include <stm32l4xx_ll_gpio.h>
 
 static void initMeasureTimer()
 {
-	uint16_t prescaler = RCC_GetSystemClockFreq() / 1000000 - 1; //1 tick = 1us (1 tick = 0.165mm resolution)
+	LL_RCC_ClocksTypeDef clocks;
+	LL_RCC_GetSystemClocksFreq(&clocks);
+	uint16_t const prescaler = clocks.SYSCLK_Frequency / 1000000 - 1; //1 tick = 1us (1 tick = 0.165mm resolution)
 
 	LL_TIM_DeInit(US_TIMER);
 
@@ -43,17 +46,17 @@ static void initPins()
 {
 	LL_GPIO_InitTypeDef gpioInit;
 	gpioInit.Pin = US_TRIG_PIN;
-	gpioInit.Speed = LL_GPIO_SPEED_FREQ_VERY_MEDIUM; //GPIO_Speed_50MHz;
+	gpioInit.Speed = LL_GPIO_SPEED_FREQ_MEDIUM; //GPIO_Speed_50MHz;
 	gpioInit.Mode = LL_GPIO_MODE_ALTERNATE; //GPIO_Mode_AF_PP;
 	gpioInit.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
 	gpioInit.Pull = LL_GPIO_PULL_NO;
 	gpioInit.Alternate = LL_GPIO_AF_0; // 0..15 ?
-	GPIO_Init(US_TRIG_PORT, &GPIO_InitStructure);
+	LL_GPIO_Init(US_TRIG_PORT, &gpioInit);
 
-	gpioInit.GPIO_Pin = US_ECHO_PIN;
-	gpioInit.GPIO_Speed = LL_GPIO_SPEED_FREQ_VERY_MEDIUM;//GPIO_Speed_50MHz;
-	gpioInit.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_Init(US_ECHO_PORT, &GPIO_InitStructure);
+	gpioInit.Pin = US_ECHO_PIN;
+	gpioInit.Speed = LL_GPIO_SPEED_FREQ_MEDIUM;//GPIO_Speed_50MHz;
+	gpioInit.Mode = LL_GPIO_MODE_INPUT; // GPIO_Mode_IN_FLOATING;
+	LL_GPIO_Init(US_ECHO_PORT, &gpioInit);
 }
 
 void InitHCSR04()
@@ -71,5 +74,14 @@ uint32_t HCSR04GetDistance()
 	LL_TIM_DisableCounter(US_TIMER);
 	LL_TIM_ClearFlag_UPDATE(US_TIMER);
 
-	return (LL_TIM_IC_GetCaptureCH2(US_TIMER)-LL_TIM_IC_GetCaptureCH1(US_TIMER))*165U/1000U;
+	return (LL_TIM_IC_GetCaptureCH2(US_TIMER) - LL_TIM_IC_GetCaptureCH1(US_TIMER))*165U/1000U;
+}
+
+void EnableHCSR04PeriphClock()
+ {
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_TIM1_CLK_ENABLE();
+	//RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	//RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	//RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
 }

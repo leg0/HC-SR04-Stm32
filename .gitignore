@@ -1,0 +1,10 @@
+*.bin
+*.hex
+*.elf
+*.o
+*.d
+*.map
+*.lst
+*.swp
+
+local.mk
