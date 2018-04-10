@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stm32l4xx_ll_tim.h>
 #include <stdbool.h>
 #include <stdint.h>
 

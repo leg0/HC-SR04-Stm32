@@ -30,17 +30,20 @@ LDSCRIPT = STM32L432KCUx_FLASH.ld
 LIBS = -lc -lm -lnosys 
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBS) -Wl,-Map=$(TARGET).map,--cref -Wl,--gc-sections
 
-SRC = main.c stm32f10x_HC-SR04.c system_stm32l4xx.c startup_stm32l432xx.s
+SRC = main.c stm32f10x_HC-SR04.c
+SRC += system_stm32l4xx.c startup_stm32l432xx.s
 SRC += stm32l4xx_ll_tim.c stm32l4xx_ll_rcc.c stm32l4xx_ll_gpio.c
 OBJ1=$(SRC:.c=.o)
 OBJ=$(OBJ1:.s=.o)
 
-#vpath %.c $(STM32CUBE_FW)Drivers/STM32L4xx/STM32L4xx_HAL_Driver/Src
+vpath %.c P:/STM32Cube_FW_L4_V1.10.0/Drivers/STM32L4xx_HAL_Driver/Src
+# vpath %.c $(STM32CUBE_FW)Drivers/STM32L4xx/STM32L4xx_HAL_Driver/Src
 vpath %.c /home/lego/STM32Cube/Repository/STM32Cube_FW_L4_V1.11.0/Drivers/STM32L4xx_HAL_Driver/Src
+
+.PHONY: all clean
 
 all: $(TARGET).elf $(TARGET).hex $(TARGET).bin
 
-#startup_stm32l432xx.o: startup_stm32l432xx.s
 %.o: %.s
 	$(AS) -c $(CFLAGS) $< -o $@
 

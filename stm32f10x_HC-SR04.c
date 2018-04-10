@@ -1,4 +1,5 @@
 #include "stm32f10x_HC-SR04.h"
+#include <stm32l4xx_hal_rcc.h>
 #include <stm32l4xx_ll_rcc.h>
 #include <stm32l4xx_ll_tim.h>
 #include <stm32l4xx_ll_gpio.h>
